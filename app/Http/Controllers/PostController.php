@@ -6,6 +6,7 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -27,7 +28,6 @@ class PostController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
             'body' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
@@ -38,10 +38,43 @@ class PostController extends Controller
         }
 
         $request->user()->posts()->create([
-            'title' => $validated['title'],
             'body' => $validated['body'],
             'image_path' => $imagePath,
         ]);
+
+        return redirect()->route('dashboard');
+    }
+
+    public function destroy(Post $post)
+    {
+        $this->authorize('delete', $post); // Assuming a PostPolicy exists for authorization
+
+        $post->delete();
+
+        return redirect()->route('dashboard');
+    }
+
+    public function update(Request $request, Post $post)
+    {
+        $this->authorize('update', $post);
+
+        $validated = $request->validate([
+            'body' => 'required|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($post->image_path) {
+                Storage::disk('public')->delete($post->image_path);
+            }
+            $validated['image_path'] = $request->file('image')->store('posts', 'public');
+        } else {
+            // If no new image, retain existing image_path or set to null if it was removed
+            $validated['image_path'] = $post->image_path;
+        }
+
+        $post->update($validated);
 
         return redirect()->route('dashboard');
     }

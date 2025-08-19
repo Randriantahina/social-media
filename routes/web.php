@@ -46,6 +46,10 @@ Route::middleware('auth')->group(function () {
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    // Messages
+    Route::get('/messages', [App\Http\Controllers\MessageController::class, 'inbox'])->name('messages.index'); // New route for messages inbox
+    Route::get('/messages/{user}', [App\Http\Controllers\MessageController::class, 'index'])->name('messages.show');
+    Route::post('/messages/{user}', [App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
 });
 
 require __DIR__.'/auth.php';
