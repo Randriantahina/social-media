@@ -9,6 +9,8 @@ class NotificationController extends Controller
 {
     public function index()
     {
+        Auth::user()->unreadNotifications->markAsRead();
+
         return inertia('Notifications/Index', [
             'notifications' => Auth::user()->notifications()->paginate(10),
         ]);

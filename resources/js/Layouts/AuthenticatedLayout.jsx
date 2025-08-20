@@ -1,15 +1,44 @@
-import { Link, usePage, router } from "@inertiajs/react";
-import { useState } from "react";
+import { Link, usePage, router, useForm } from "@inertiajs/react";
+import { useState, useEffect } from "react";
+import Modal from "@/Components/Modal";
+import PrimaryButton from "@/Components/PrimaryButton";
+import InputError from "@/Components/InputError";
+import InputLabel from "@/Components/InputLabel";
 
 export default function AuthenticatedLayout({ children }) {
     const { auth } = usePage().props;
     const user = auth.user;
 
-    //barre de recherche
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(auth.unread_messages_count);
+    const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(auth.unread_notifications_count);
+
+    useEffect(() => {
+        if (user) {
+            // Listen for notifications
+            window.Echo.private(`App.Models.User.${user.id}`)
+                .notification((notification) => {
+                    setUnreadNotificationsCount(prevCount => prevCount + 1);
+                });
+
+            // Listen for new messages to update the count
+            // Note: This requires a more complex channel setup to listen to all incoming messages
+            // For now, we will rely on the initial count and page reloads.
+            // A more advanced implementation would be a dedicated "new-message-count" channel.
+        }
+
+        // Cleanup
+        return () => {
+            if (user) {
+                window.Echo.leave(`App.Models.User.${user.id}`);
+            }
+        };
+    }, [user]);
+
+
+    // Barre de recherche
     const [searchQuery, setSearchQuery] = useState("");
     const handleSearch = (e) => {
         e.preventDefault();
-        console.log("Recherche :", searchQuery);
         router.get(
             route("users.search"),
             { query: searchQuery },
@@ -18,6 +47,32 @@ export default function AuthenticatedLayout({ children }) {
                 replace: true,
             },
         );
+    };
+
+    // State and logic for chat modal
+    const [showChatModal, setShowChatModal] = useState(false);
+    const [selectedFriend, setSelectedFriend] = useState(null);
+    const { data, setData, post, processing, errors, reset } = useForm({
+        message: "",
+    });
+
+    const openChatModal = (friend) => {
+        setSelectedFriend(friend);
+        setShowChatModal(true);
+    };
+
+    const closeChatModal = () => {
+        setShowChatModal(false);
+        reset();
+    };
+
+    const sendMessage = (e) => {
+        e.preventDefault();
+        if (!selectedFriend) return;
+        post(route("messages.store", selectedFriend.id), {
+            onSuccess: () => closeChatModal(),
+            preserveScroll: true,
+        });
     };
 
     return (
@@ -86,7 +141,7 @@ export default function AuthenticatedLayout({ children }) {
                             </Link>
                             <Link
                                 href={route("messages.index")}
-                                className="text-gray-600 hover:text-blue-600"
+                                className="relative text-gray-600 hover:text-blue-600"
                             >
                                 <svg
                                     className="w-7 h-7"
@@ -102,6 +157,11 @@ export default function AuthenticatedLayout({ children }) {
                                         d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                                     />
                                 </svg>
+                                {auth.unread_messages_count > 0 && (
+                                    <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white">
+                                        {auth.unread_messages_count}
+                                    </span>
+                                )}
                             </Link>
                             <Link
                                 href={route("notifications.index")}
@@ -121,8 +181,10 @@ export default function AuthenticatedLayout({ children }) {
                                         d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                                     />
                                 </svg>
-                                {user.unread_notifications > 0 && (
-                                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-600 ring-2 ring-white"></span>
+                                {auth.unread_notifications_count > 0 && (
+                                    <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white">
+                                        {auth.unread_notifications_count}
+                                    </span>
                                 )}
                             </Link>
                         </div>
@@ -235,12 +297,93 @@ export default function AuthenticatedLayout({ children }) {
                                 <h3 className="text-lg font-semibold mb-4">
                                     Contacts
                                 </h3>
-                                {/* Contacts list would go here */}
+                                <div className="space-y-3">
+                                    {(auth.friends?.length ?? 0) > 0 ? (
+                                        auth.friends.map((friend) => (
+                                            <div
+                                                key={friend.id}
+                                                className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100"
+                                            >
+                                                <div className="flex items-center space-x-3">
+                                                    <img
+                                                        src={
+                                                            friend.avatar ||
+                                                            `https://ui-avatars.com/api/?name=${friend.name}&background=random`
+                                                        }
+                                                        alt={friend.name}
+                                                        className="h-8 w-8 rounded-full object-cover"
+                                                    />
+                                                    <span className="font-medium text-gray-800">
+                                                        {friend.name}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => openChatModal(friend)}
+                                                    className="p-1 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                                                    title="Message"
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        className="h-5 w-5"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M7 8h10M7 12h4m1 8l-5-5H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2h-3l-5 5z"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">
+                                            Vous n'avez aucun ami pour le moment.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </aside>
                 </div>
             </main>
+
+            <Modal show={showChatModal} onClose={closeChatModal}>
+                <form onSubmit={sendMessage} className="p-6">
+                    <h2 className="text-lg font-medium text-gray-900">
+                        Envoyer un message à {selectedFriend?.name}
+                    </h2>
+
+                    <div className="mt-6">
+                        <InputLabel
+                            htmlFor="message"
+                            value="Message"
+                            className="sr-only"
+                        />
+
+                        <textarea
+                            id="message"
+                            name="message"
+                            value={data.message}
+                            onChange={(e) => setData("message", e.target.value)}
+                            className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                            rows="5"
+                            placeholder="Votre message..."
+                        ></textarea>
+
+                        <InputError message={errors.message} className="mt-2" />
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                        <PrimaryButton className="ms-3" disabled={processing}>
+                            Envoyer
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

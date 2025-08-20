@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Message;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Illuminate\Support\Facades\Auth;
@@ -30,11 +31,15 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
-                'unread_notifications' => $request->user() ? $request->user()->unreadNotifications()->count() : 0,
+                'user' => $user,
+                'friends' => $user ? $user->friends() : [],
+                'unread_notifications_count' => $user ? $user->unreadNotifications()->count() : 0,
+                'unread_messages_count' => $user ? Message::where('receiver_id', $user->id)->whereNull('read_at')->count() : 0,
             ],
         ];
     }

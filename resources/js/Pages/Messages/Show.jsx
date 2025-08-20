@@ -21,13 +21,13 @@ export default function Show({ auth, messages: initialMessages, receiver }) {
     useEffect(() => {
         // Subscribe to private channel for messages from receiver to sender
         window.Echo.private(`chat.${auth.user.id}.${receiver.id}`)
-            .listen('.message.sent', (e) => {
+            .listen('message.sent', (e) => {
                 setMessages((prevMessages) => [...prevMessages, e.message]);
             });
 
         // Subscribe to private channel for messages from sender to receiver
         window.Echo.private(`chat.${receiver.id}.${auth.user.id}`)
-            .listen('.message.sent', (e) => {
+            .listen('message.sent', (e) => {
                 setMessages((prevMessages) => [...prevMessages, e.message]);
             });
 

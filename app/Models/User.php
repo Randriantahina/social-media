@@ -73,4 +73,11 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(User::class, 'follows', 'follower_id', 'followed_id');
     }
+
+    // Récupère les amis (suivi mutuel)
+    public function friends()
+    {
+        $following = $this->followings()->pluck('users.id');
+        return $this->followers()->whereIn('users.id', $following)->get();
+    }
 }

@@ -23,7 +23,7 @@ class NewFollowerNotification extends Notification implements ShouldQueue
         return ['database'];
     }
 
-    public function toArray(object $notifiable): array
+    public function toDatabase(object $notifiable): array
     {
         return [
             'follower_id' => $this->follower->id,

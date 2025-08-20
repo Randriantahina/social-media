@@ -12,6 +12,12 @@ class MessageController extends Controller
 {
     public function index(User $user)
     {
+        // Marquer les messages de cet utilisateur comme lus
+        Message::where('sender_id', $user->id)
+            ->where('receiver_id', Auth::id())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
         $messages = Message::where(function ($query) use ($user) {
             $query->where('sender_id', Auth::id())
                   ->where('receiver_id', $user->id);
@@ -69,6 +75,9 @@ class MessageController extends Controller
         ]);
 
         \App\Events\MessageSent::dispatch($message, Auth::user(), $user);
+
+        // Log pour le débogage
+        \Illuminate\Support\Facades\Log::info('MessageSent event dispatched for message ID: ' . $message->id);
 
         return redirect()->back();
     }
