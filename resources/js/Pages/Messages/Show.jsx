@@ -19,21 +19,20 @@ export default function Show({ auth, messages: initialMessages, receiver }) {
     }, [messages]);
 
     useEffect(() => {
-        // Subscribe to private channel for messages from receiver to sender
-        window.Echo.private(`chat.${auth.user.id}.${receiver.id}`)
-            .listen('message.sent', (e) => {
-                setMessages((prevMessages) => [...prevMessages, e.message]);
-            });
+        const ids = [auth.user.id, receiver.id].sort((a, b) => a - b);
+        const channelName = `chat.${ids[0]}.${ids[1]}`;
 
-        // Subscribe to private channel for messages from sender to receiver
-        window.Echo.private(`chat.${receiver.id}.${auth.user.id}`)
-            .listen('message.sent', (e) => {
-                setMessages((prevMessages) => [...prevMessages, e.message]);
-            });
+        const channel = window.Echo.private(channelName);
+
+        const listener = (e) => {
+            setMessages((prevMessages) => [...prevMessages, e.message]);
+        };
+
+        channel.listen('message.sent', listener);
 
         return () => {
-            window.Echo.leave(`chat.${auth.user.id}.${receiver.id}`);
-            window.Echo.leave(`chat.${receiver.id}.${auth.user.id}`);
+            channel.stopListening('message.sent', listener);
+            window.Echo.leave(channelName);
         };
     }, [auth.user.id, receiver.id]);
 
