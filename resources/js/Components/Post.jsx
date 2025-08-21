@@ -76,7 +76,7 @@ export default function Post({ post, auth, followings }) {
         // Use POST method with _method spoofing for file uploads
         router.post(
             route("posts.update", post.id),
-            { ...editData, _method: "put" },
+            { ...editData, _method: "patch" },
             {
                 onSuccess: () => {
                     setShowEditModal(false);
