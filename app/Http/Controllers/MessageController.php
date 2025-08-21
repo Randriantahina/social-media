@@ -74,6 +74,9 @@ class MessageController extends Controller
             'message' => $validated['message'],
         ]);
 
+        // Charger la relation nécessaire avant de diffuser
+        $message->load('sender');
+
         \App\Events\MessageSent::dispatch($message, Auth::user(), $user);
 
         // Log pour le débogage

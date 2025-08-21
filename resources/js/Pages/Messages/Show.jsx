@@ -39,9 +39,18 @@ export default function Show({ auth, messages: initialMessages, receiver }) {
     const submitMessage = (e) => {
         e.preventDefault();
         post(route('messages.store', receiver.id), {
-            data,
-            onSuccess: () => reset('message'),
             preserveScroll: true,
+            onSuccess: () => {
+                // Manually add the new message to the state for instant UI update for the sender.
+                const newMessage = {
+                    id: Date.now(), // Temporary ID, will be replaced on next full load
+                    message: data.message,
+                    sender_id: auth.user.id,
+                    sender: auth.user, // Use authenticated user object
+                };
+                setMessages(prevMessages => [...prevMessages, newMessage]);
+                reset('message');
+            },
         });
     };
 
